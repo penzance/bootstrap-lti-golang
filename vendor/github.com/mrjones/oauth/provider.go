@@ -55,16 +55,9 @@ func makeURLAbs(url *url.URL, request *http.Request) {
 	}
 }
 
-// IsAuthorized takes an *http.Request and returns a pointer to a string containing the consumer key,
-// or nil if not authorized
-func (provider *Provider) IsAuthorized(request *http.Request) (*string, error) {
+func getOauthParamsFromAuthHeader(authHeader string) (map[string]string, error) {
 	var err error
 
-	makeURLAbs(request.URL, request)
-
-	// Get the OAuth header vals. Probably would be better with regexp,
-	// but my regex foo is low today.
-	authHeader := request.Header.Get(HTTP_AUTH_HEADER)
 	if strings.EqualFold(OAUTH_HEADER, authHeader[0:5]) {
 		return nil, fmt.Errorf("no OAuth Authorization header")
 	}
@@ -83,27 +76,89 @@ func (provider *Provider) IsAuthorized(request *http.Request) (*string, error) {
 			}
 		}
 	}
-	oauthSignature, ok := pars[SIGNATURE_PARAM]
-	if !ok {
-		return nil, fmt.Errorf("no oauth signature")
-	}
-	delete(pars, SIGNATURE_PARAM)
 
-	// Check the timestamp
-	oauthTimeNumber, err := strconv.Atoi(pars[TIMESTAMP_PARAM])
+	return pars, nil
+}
+
+// IsAuthorized takes an *http.Request and returns a pointer to a string containing the consumer key,
+// or nil if not authorized
+func (provider *Provider) IsAuthorized(request *http.Request) (*string, error) {
+	var consumerKey string
+	var err error
+	var oauthSignature string
+	var oauthTimeNumber int
+	var ok bool
+
+	makeURLAbs(request.URL, request)
+
+	// if the oauth params are in the Authorization header, grab them
+	params := map[string]string{}
+	authHeader := request.Header.Get(HTTP_AUTH_HEADER)
+	if authHeader != "" {
+		params, err := getOauthParamsFromAuthHeader(authHeader)
+		if err != nil {
+			return nil, err
+		}
+
+		oauthSignature, ok = params[SIGNATURE_PARAM]
+		if !ok {
+			return nil, fmt.Errorf("no oauth signature")
+		}
+		delete(params, SIGNATURE_PARAM)
+
+		oauthTimeNumber, err = strconv.Atoi(params[TIMESTAMP_PARAM])
+		if err != nil {
+			return nil, err
+		}
+
+		consumerKey, ok = params[CONSUMER_KEY_PARAM]
+		if !ok {
+			return nil, fmt.Errorf("no consumer key")
+		}
+	}
+
+	userParams, err := parseBody(request)
 	if err != nil {
 		return nil, err
 	}
+
+	// if we got the oauth params from the body, remove the signature
+	if oauthSignature == "" {
+		signatureIndex := -1
+		for i, pair := range userParams {
+			if pair.key == SIGNATURE_PARAM {
+				signatureIndex = i
+			}
+			if pair.key == TIMESTAMP_PARAM {
+				oauthTimeNumber, err = strconv.Atoi(pair.value)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if pair.key == CONSUMER_KEY_PARAM {
+				consumerKey = pair.value
+			}
+		}
+		if signatureIndex == -1 {
+			return nil, fmt.Errorf("no oauth signature")
+		}
+		oauthSignature = userParams[signatureIndex].value
+		userParams = append(userParams[:signatureIndex], userParams[signatureIndex+1:]...)
+		if oauthTimeNumber == 0 {
+			return nil, fmt.Errorf("no timestamp")
+		}
+		if consumerKey == "" {
+			return nil, fmt.Errorf("no consumer key")
+		}
+	}
+
+	// Check the timestamp
 	if math.Abs(float64(int64(oauthTimeNumber)-provider.clock.Seconds())) > 5*60 {
 		return nil, fmt.Errorf("too much clock skew")
 	}
 
-	consumerKey, ok := pars[CONSUMER_KEY_PARAM]
-	if !ok {
-		return nil, fmt.Errorf("no consumer key")
-	}
 
-	consumer, err := provider.ConsumerGetter(consumerKey, pars)
+	consumer, err := provider.ConsumerGetter(consumerKey, params)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +169,7 @@ func (provider *Provider) IsAuthorized(request *http.Request) (*string, error) {
 			return nil, err
 		}
 
-		sentHash, ok := pars[BODY_HASH_PARAM]
+		sentHash, ok := params[BODY_HASH_PARAM]
 
 		if bodyHash == "" && ok {
 			return nil, fmt.Errorf("body_hash must not be set")
@@ -123,13 +178,8 @@ func (provider *Provider) IsAuthorized(request *http.Request) (*string, error) {
 		}
 	}
 
-	userParams, err := parseBody(request)
-	if err != nil {
-		return nil, err
-	}
-
 	allParams := NewOrderedParams()
-	for key, value := range pars {
+	for key, value := range params {
 		allParams.Add(key, value)
 	}
 
