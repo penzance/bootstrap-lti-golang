@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 
@@ -26,6 +27,8 @@ func main() {
 		"test": "secret",
 	}
 	var provider = oauth.NewProvider(secrets.secretGetter)
+	// TODO: figure out how to bundle template files with go binaries
+	var pageTemplate = template.Must(template.New("ltiBootstrap").Parse(pageTemplateString))
 
 	http.HandleFunc("/launch", func (w http.ResponseWriter, r *http.Request) {
 		authorized, err := provider.IsAuthorized(r)
@@ -40,8 +43,37 @@ func main() {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("launch authorized"))
+		r.ParseForm()
+		pageTemplate.Execute(w, r.Form)
 	})
 
 	log.Fatal(http.ListenAndServe("0.0.0.0:9999", nil))
 }
+
+const pageTemplateString = `
+<html>
+  <head>
+    <title>Bootstrap LTI</title>
+  </head>
+
+  <body>
+    <table>
+      <caption>LTI Launch Parameters</caption>
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Values</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{ range $key, $values := . }}
+        <tr>
+          <td>{{ $key }}</td>
+          <td>{{ $values }}</td>
+        </tr>
+        {{ end }}
+      </tbody>
+    </table>
+  </body>
+</html>
+	`
