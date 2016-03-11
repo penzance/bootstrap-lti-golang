@@ -1,32 +1,20 @@
 package main
 
 import (
-	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 
 	"github.com/mrjones/oauth"
+	"github.com/penzance/bootstrap-lti-golang/lti"
 )
 
 
-type HardCodedSecretGetter map[string]string
-func (h HardCodedSecretGetter) secretGetter(key string, header map[string]string) (*oauth.Consumer, error) {
-	secret, ok := h[key]
-	if !ok {
-		return nil, fmt.Errorf("oauth_consumer_key %s is unknown")
-	}
-
-	c := oauth.NewConsumer(key, secret, oauth.ServiceProvider{})
-	return c, nil
-}
-
-
 func main() {
-	var secrets = HardCodedSecretGetter{
+	var secrets = lti.HardCodedSecretGetter{
 		"test": "secret",
 	}
-	var provider = oauth.NewProvider(secrets.secretGetter)
+	var provider = oauth.NewProvider(secrets.SecretGetter)
 	// TODO: figure out how to bundle template files with go binaries
 	var pageTemplate = template.Must(template.New("ltiBootstrap").Parse(pageTemplateString))
 
