@@ -5,39 +5,49 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	"github.com/mrjones/oauth"
 	"github.com/penzance/bootstrap-lti-golang/lti"
 )
 
 
-func main() {
-	var secrets = lti.HardCodedSecretGetter{
+// TODO: put these in a struct, hang launchHandler off it
+var (
+	secrets = lti.HardCodedSecretGetter{
 		"test": "secret",
 	}
-	var provider = oauth.NewProvider(secrets.SecretGetter)
-	// TODO: figure out how to bundle template files with go binaries
-	var pageTemplate = template.Must(template.New("ltiBootstrap").Parse(pageTemplateString))
+	provider = oauth.NewProvider(secrets.SecretGetter)
+	pageTemplate = template.Must(template.New("ltiBootstrap").Parse(pageTemplateString))
+)
 
-	http.HandleFunc("/launch", func (w http.ResponseWriter, r *http.Request) {
-		authorized, err := provider.IsAuthorized(r)
-		if err != nil {
-			log.Println(err)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
 
-		if authorized == nil {
-			w.WriteHeader(http.StatusUnauthorized)
-		}
-
-		w.WriteHeader(http.StatusOK)
-		r.ParseForm()
-		pageTemplate.Execute(w, r.Form)
-	})
-
+func main() {
+	router := mux.NewRouter()
+	router.HandleFunc("/launch", launchHandler).Methods("POST")
+	http.Handle("/", router)
 	log.Fatal(http.ListenAndServe("0.0.0.0:9999", nil))
 }
 
+
+func launchHandler(w http.ResponseWriter, r *http.Request) {
+	authorized, err := provider.IsAuthorized(r)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if authorized == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	r.ParseForm()
+	pageTemplate.Execute(w, r.Form)
+}
+
+
+// TODO: figure out how to bundle template files with go binaries
 const pageTemplateString = `
 <html>
   <head>
