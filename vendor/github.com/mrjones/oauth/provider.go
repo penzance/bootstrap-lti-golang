@@ -95,7 +95,7 @@ func (provider *Provider) IsAuthorized(request *http.Request) (*string, error) {
 	params := map[string]string{}
 	authHeader := request.Header.Get(HTTP_AUTH_HEADER)
 	if authHeader != "" {
-		params, err := getOauthParamsFromAuthHeader(authHeader)
+		params, err = getOauthParamsFromAuthHeader(authHeader)
 		if err != nil {
 			return nil, err
 		}
