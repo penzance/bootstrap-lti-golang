@@ -6,9 +6,9 @@ import (
 	"github.com/mrjones/oauth"
 )
 
-
 // extend map to function as an oauth SecretGetter
 type HardCodedSecretGetter map[string]string
+
 func (h HardCodedSecretGetter) SecretGetter(key string, header map[string]string) (*oauth.Consumer, error) {
 	secret, ok := h[key]
 	if !ok {

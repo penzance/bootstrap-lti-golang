@@ -10,16 +10,14 @@ import (
 	"github.com/penzance/bootstrap-lti-golang/lti"
 )
 
-
 // TODO: put these in a struct, hang launchHandler off it
 var (
 	secrets = lti.HardCodedSecretGetter{
 		"test": "secret",
 	}
-	provider = oauth.NewProvider(secrets.SecretGetter)
+	provider     = oauth.NewProvider(secrets.SecretGetter)
 	pageTemplate = template.Must(template.New("ltiBootstrap").Parse(pageTemplateString))
 )
-
 
 func main() {
 	router := mux.NewRouter()
@@ -27,7 +25,6 @@ func main() {
 	http.Handle("/", router)
 	log.Fatal(http.ListenAndServe("0.0.0.0:9999", nil))
 }
-
 
 func launchHandler(w http.ResponseWriter, r *http.Request) {
 	authorized, err := provider.IsAuthorized(r)
@@ -45,7 +42,6 @@ func launchHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	pageTemplate.Execute(w, r.Form)
 }
-
 
 // TODO: figure out how to bundle template files with go binaries
 const pageTemplateString = `
