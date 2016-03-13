@@ -18,7 +18,6 @@ var (
 	}
 	provider     = oauth.NewProvider(secrets.SecretGetter)
 	pageTemplate = template.Must(template.New("ltiBootstrap").Parse(pageTemplateString))
-	store sessions.Store
 )
 
 func main() {
@@ -30,13 +29,17 @@ func main() {
 	if err != nil {
 		log.Fatal("unable to decode session encryption key")
 	}
-	store = sessions.NewFilesystemStore("", authenticationKey, encryptionKey)
+	store := sessions.NewFilesystemStore("", authenticationKey, encryptionKey)
+	store.MaxLength(0)
+
 	router := mux.NewRouter()
 	router.HandleFunc("/launch", launchHandler).Methods("POST")
 	router.HandleFunc("/launch_params", launchParamsHandler).Methods("GET")
 
 	//http.Handle("/", router)
 	ltiSessionHandler := lti.LTISessionHandler{router, *provider, store}
+
+	log.Println("listening...")
 	log.Fatal(http.ListenAndServe("0.0.0.0:9999", ltiSessionHandler))
 }
 

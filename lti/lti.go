@@ -71,7 +71,7 @@ func (h LTISessionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		// stick it in the session
 		r.ParseForm()
-		session.Values[launchParamsKey] = r.Form
+		session.Values[launchParamsKey] = &(r.Form)
 		if err := session.Save(r,w); err != nil {
 			log.Println("unable to save lti launch params to session:", err)
 			http.Error(w, http.StatusText(http.StatusInternalServerError),
@@ -82,14 +82,13 @@ func (h LTISessionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// grab the launch params from the session, store in the context
 	val := session.Values[launchParamsKey]
-	launchParams, ok := val.(url.Values)
-	if !ok {
-		log.Println("wrong type for lti params in session")
+	if val == nil {
+		log.Println("no lti launch params in session")
 		http.Error(w, http.StatusText(http.StatusInternalServerError),
 			http.StatusInternalServerError)
 		return
 	}
-	SetLaunchParams(r, launchParams)
+	SetLaunchParams(r, val.(*url.Values))
 
 	h.Next.ServeHTTP(w, r)
 }
@@ -121,13 +120,13 @@ func isLaunch(r *http.Request) bool {
 	return false
 }
 
-func GetLaunchParams(r *http.Request) url.Values {
+func GetLaunchParams(r *http.Request) *url.Values {
 	if rv := context.Get(r, launchParamsKey); rv != nil {
-		return rv.(url.Values)
+		return rv.(*url.Values)
 	}
 	return nil
 }
 
-func SetLaunchParams(r *http.Request, v url.Values) {
+func SetLaunchParams(r *http.Request, v *url.Values) {
 	context.Set(r, launchParamsKey, v)
 }
