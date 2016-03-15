@@ -22,7 +22,6 @@ func init() {
 	gob.Register(&url.Values{})
 }
 
-// TODO: authorization check methods (ie. IsAdministrator)
 // TODO: New() method to supply default provider/secretgetter
 
 type LTISessionHandler struct {
@@ -75,7 +74,7 @@ func (h LTISessionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.StatusInternalServerError)
 		return
 	}
-	SetLaunchParams(r, val.(*url.Values))
+	SetLaunchParams(r, *(val.(*url.Values)))
 
 	h.Next.ServeHTTP(w, r)
 }
@@ -101,19 +100,19 @@ func isLaunch(r *http.Request) bool {
 			return false
 		}
 
-		return r.Form.Get("lti_message_type") == "basic-lti-launch-request"
+		return r.Form.Get(ParamLTIMessageType) == MessageTypeBasicLaunchRequest
 	}
 
 	return false
 }
 
-func GetLaunchParams(r *http.Request) *url.Values {
+func GetLaunchParams(r *http.Request) url.Values {
 	if rv := context.Get(r, launchParamsKey); rv != nil {
-		return rv.(*url.Values)
+		return rv.(url.Values)
 	}
 	return nil
 }
 
-func SetLaunchParams(r *http.Request, v *url.Values) {
+func SetLaunchParams(r *http.Request, v url.Values) {
 	context.Set(r, launchParamsKey, v)
 }

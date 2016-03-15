@@ -1,6 +1,12 @@
 package lti
 
 const (
+	MessageTypeBasicLaunchRequest = "basic-lti-launch-request"
+
+	ParamLTIMessageType = "lti_message_type"
+	ParamRoles = "roles"
+
+	// roles that may be passed as part of an LTI launch
 	// NOTE: just contains the small number of LIS roles used by Canvas, as
 	//       of 081679e.  many more can be found in the LTI spec:
 	//       http://www.imsglobal.org/specs/ltiv1p1p1/implementation-guide#toc-19

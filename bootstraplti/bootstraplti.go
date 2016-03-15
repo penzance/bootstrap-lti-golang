@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
@@ -59,11 +60,15 @@ func launchParamsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	pageTemplate.Execute(w, ltiLaunchParams)
+	pageTemplate.Execute(w, SessionDetails{ltiLaunchParams, lti.IsStaff(r)})
 }
 
 // TODO: figure out how to bundle template files with go binaries such that
 //       i can split this out without requiring you to run it from src dir
+type SessionDetails struct {
+	Params url.Values
+	IsStaff bool
+}
 const pageTemplateString = `
 <html>
   <head>
@@ -71,6 +76,7 @@ const pageTemplateString = `
   </head>
 
   <body>
+    <h1>Welcome{{ if .IsStaff }}, Staff Member{{ end }}</h1>
     <table>
       <caption>LTI Launch Parameters</caption>
       <thead>
@@ -80,7 +86,7 @@ const pageTemplateString = `
         </tr>
       </thead>
       <tbody>
-        {{ range $key, $values := . }}
+        {{ range $key, $values := .Params }}
         <tr>
           <td>{{ $key }}</td>
           <td>{{ $values }}</td>
