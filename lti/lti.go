@@ -3,7 +3,6 @@ package lti
 import (
 	"bytes"
 	"encoding/gob"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -23,20 +22,8 @@ func init() {
 	gob.Register(&url.Values{})
 }
 
-// extend map to function as an oauth SecretGetter
-type HardCodedSecretGetter map[string]string
-
-func (h HardCodedSecretGetter) SecretGetter(key string, header map[string]string) (*oauth.Consumer, error) {
-	secret, ok := h[key]
-	if !ok {
-		return nil, fmt.Errorf("oauth_consumer_key %s is unknown")
-	}
-	c := oauth.NewConsumer(key, secret, oauth.ServiceProvider{})
-	return c, nil
-}
-
 // TODO: authorization check methods (ie. IsAdministrator)
-// TODO: New method to supply default provider/secretgetter
+// TODO: New() method to supply default provider/secretgetter
 
 type LTISessionHandler struct {
 	Next http.Handler
@@ -48,8 +35,8 @@ func (h LTISessionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// get the session object
 	session, err := h.Store.Get(r, sessionKey)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		// we still get a(n empty) session back, just log the error
+		log.Printf("unable to retrieve session %s: %s", sessionKey, err)
 	}
 
 	// check for a new launch
@@ -98,7 +85,7 @@ func isLaunch(r *http.Request) bool {
 	body, err := ioutil.ReadAll(r.Body)
 	r.Body.Close()
 	if err != nil {
-		// TODO: should we bubble this up somehow?
+		// TODO: should we bubble this up?
 		log.Println("unable to read the request body:", err)
 		return false
 	}
@@ -109,7 +96,7 @@ func isLaunch(r *http.Request) bool {
 	if r.Method == http.MethodPost {
 		r.Body = ioutil.NopCloser(bytes.NewReader(body))
 		if err := r.ParseForm(); err != nil {
-			// TODO: should we bubble this up somehow?
+			// TODO: should we bubble this up?
 			log.Println("unable to parse form from body:", err)
 			return false
 		}
