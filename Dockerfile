@@ -6,6 +6,6 @@ RUN go get -d -v \
 	github.com/gorilla/mux \
 	github.com/gorilla/sessions \
 	github.com/mrjones/oauth
-RUN go install -v github.com/penzance/bootstrap-lti-golang/bootstrap-lti
-ENTRYPOINT ["/go/bin/bootstrap-lti"]
+RUN go install -v github.com/penzance/bootstrap-lti-golang/bootstraplti
+ENTRYPOINT ["/go/bin/bootstraplti"]
 EXPOSE 9999
